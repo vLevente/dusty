@@ -11,8 +11,10 @@ import time
 import cv2
 from copy import deepcopy
 from re import findall
+import multiprocessing as mp
 
-def scan_qr(qr_proc_to_orch):
+
+def scan_qr(qr_proc_to_orch, qr_semaphore):
     # construct the argument parser and parse the arguments
     ap = argparse.ArgumentParser()
     ap.add_argument("-o", "--output", type=str, default="barcodes.csv",
@@ -65,13 +67,14 @@ def scan_qr(qr_proc_to_orch):
                                             barcodeData))
                     csv.flush()
                     found.add(barcodeData)
-                    print(barcodeData) # TODO this is just for debug
+                    print("[DEBUG] raw barcodeData: {}".format(barcodeData))
 
                     # with open('input_direction_2.txt', 'w') as f:
                     #     f.write(str(barcodeData))
-
+                    qr_semaphore.acquire()
                     qr_proc_to_orch.Array = findall(r"[-+]?\d*\.\d+|\d+", str(barcodeData))
-
+                    print("[DEBUG] qr_proc_to_orch.Array = {}" .format(qr_proc_to_orch.Array))
+                    qr_semaphore.release()
 
             # show the output frame
             # cv2.imshow("Barcode Scanner", frame)
@@ -82,7 +85,7 @@ def scan_qr(qr_proc_to_orch):
             #     break
     except KeyboardInterrupt:
         # close the output CSV file do a bit of cleanup
-        print("[QR Scanner] cleaning up...")
+        print("[INFO] QR scanner cleaning up...")
         csv.close()
         cv2.destroyAllWindows()
         vs.stop()

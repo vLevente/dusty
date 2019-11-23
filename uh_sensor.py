@@ -1,12 +1,10 @@
-#!/usr/bin/python
-
 # Import required Python libraries
 import time
 import RPi.GPIO as GPIO
 import multiprocessing
 from copy import deepcopy
 
-def uh_sensor(uh_sensor_to_orch):
+def uh_sensor(uh_sensor_to_orch, uh_semaphore):
     # Use BCM GPIO references
     # instead of physical pin numbers
     GPIO.setmode(GPIO.BCM)
@@ -49,9 +47,11 @@ def uh_sensor(uh_sensor_to_orch):
             # That was the distance there and back so halve the value
             distance = distancet / 2
             
+            uh_semaphore.acquire()
             uh_sensor_2_orch.value = deepcopy(distance)
+            uh_semaphore.release()
 
-            time.sleep(.5) #sleep for a sec
+            time.sleep(.5) 
             
     except KeyboardInterrupt:
         GPIO.cleanup() # Reset GPIO settings
