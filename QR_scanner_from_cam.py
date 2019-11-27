@@ -71,8 +71,16 @@ def scan_qr(qr_proc_to_orch, qr_semaphore):
 
                     # with open('input_direction_2.txt', 'w') as f:
                     #     f.write(str(barcodeData))
+
+                    Tlist = findall(r"[-+]?\d*\.\d+|\d+", str(barcodeData))
+                    x=0
+                    while x < len(Tlist):
+                        Tlist[x] = float(Tlist[x])
+                        x+=1
+                    print("[DEBUG] Tlist = {}" .format(Tlist))
+
                     qr_semaphore.acquire()
-                    qr_proc_to_orch.Array = findall(r"[-+]?\d*\.\d+|\d+", str(barcodeData))
+                    qr_proc_to_orch.Array = Tlist
                     print("[DEBUG] qr_proc_to_orch.Array = {}" .format(qr_proc_to_orch.Array))
                     qr_semaphore.release()
 
