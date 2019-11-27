@@ -19,15 +19,15 @@ def interface2robot(robot_control_to_orch, robot_semaphore):
                 robot_control_to_orch.Array[4] = 0
                 local_command = deepcopy(robot_control_to_orch.Array)
                 robot_semaphore.release()
-                if local_command[2] is not 0.0: 
+                if local_command[2] != 0.0: 
                     # bot.turn_angle(angle = local_command[2], speed=200)
                     bot.drive_direct(-100,100)
                     Sleep(1.6/90 * local_command[2])
                     bot.drive_direct(0,0)
                     time.sleep(0.1)
                 bot.drive_distance(distance = local_command[3], speed=300, stop=True)
-                #TODO stop the action if needed
-                time.sleep(local_command[1])
+                # TODO stop the action if needed
+                # time.sleep(local_command[1])
             
             time.sleep(.2)
 

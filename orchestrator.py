@@ -8,8 +8,16 @@ import uh_sensor
 from copy import deepcopy
 import time
 
+def check_id(list_of_ids, new_id):
+    for x in list_of_ids:
+        if x == new_id:
+            return False
+    return True
+
+
 if __name__ == '__main__':
     try:
+        used_commands = []
         # Creating sempahores to use consistent data
         uh_semaphore = mp.BoundedSemaphore(1)
         mqtt_semaphore = mp.BoundedSemaphore(1)
@@ -37,8 +45,7 @@ if __name__ == '__main__':
 
         # We need a loop to process the data from the processes and decide what to do
         while True:
-            current_command_id
-
+            
             uh_semaphore.acquire()
             dist_from_uh = deepcopy(uh_sensor_2_orch.value)
             uh_semaphore.release()
@@ -47,12 +54,12 @@ if __name__ == '__main__':
                 robot_semaphore.acquire()
                 orch_2_robot_control.Array = [0.0 0.1, 0.0, 0.0, 1.0] # stop the robot
                 robot_semaphore.release()
-                current_command_id = 0.0
 
             mqtt_semaphore.acquire()
             mqtt_code =  deepcopy(mqtt_2_orch.Array) # Note that this will not override the current action
             mqtt_semaphore.release()
-            if(current_command_id is not mqtt_code[0])
+            if(check_id(used_commands, mqtt_code[0]))
+                used_commands.append(mqtt_code[0])
                 robot_semaphore.acquire()
                 orch_2_robot_control.Array = mqtt_code
                 robot_semaphore.release()
@@ -60,7 +67,8 @@ if __name__ == '__main__':
             qr_semaphore.acquire()
             qr_code = deepcopy(orch_2_qr_proc.Array)
             qr_semaphore.release()
-            if(current_command_id is not qr_code[0])
+            if(check_id(used_commands, qr_code[0]))
+                used_commands.append(qr_code[0])
                 robot_semaphore.acquire()
                 orch_2_robot_control.Array = qr_code
                 robot_semaphore.release()

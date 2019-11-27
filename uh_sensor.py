@@ -2,7 +2,7 @@
 import time
 import RPi.GPIO as GPIO
 import multiprocessing
-from copy import deepcopy
+# from copy import deepcopy
 
 def uh_sensor(uh_sensor_to_orch, uh_semaphore):
     # Use BCM GPIO references
@@ -48,7 +48,7 @@ def uh_sensor(uh_sensor_to_orch, uh_semaphore):
             distance = distancet / 2
             
             uh_semaphore.acquire()
-            uh_sensor_2_orch.value = deepcopy(distance)
+            uh_sensor_2_orch.value = distance
             uh_semaphore.release()
 
             time.sleep(.5) 
