@@ -1,118 +1,126 @@
-# USAGE
-# python distance_between.py --image images/example_01.png --width 0.955
-# python distance_between.py --image images/example_02.png --width 0.955
-# python distance_between.py --image images/example_03.png --width 3.5
+#!/usr/bin/python
 
-# import the necessary packages
+import multiprocessing as mp
+# import QR_scanner_from_cam
+# import robot_control
+# import uh_sensor
+# import mqtt_client
+from copy import deepcopy
+import time
 
-from scipy.spatial import distance as dist
-from imutils import perspective
-from imutils import contours
-import numpy as np
-import argparse
-import imutils
-import cv2
 
-def midpoint(ptA, ptB):
-    return ((ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5)
+def check_id(list_of_ids, new_id):
+    for x in list_of_ids:
+        if x == new_id:
+            return False
+    return True
 
-# construct the argument parse and parse the arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--image", required=True,
-    help="path to the input image")
-ap.add_argument("-w", "--width", type=float, required=True,
-    help="width of the left-most object in the image (in inches)")
-args = vars(ap.parse_args())
+def dummy_qr_reader(qr_proc_2_orch, qr_semaphore):
+    time.sleep(2.0)
+    Tlist = [5000.0, 4.0, 0.0, 2.0, 1.0] 
+    qr_semaphore.acquire()
+    qr_proc_to_orch = Tlist
+    print("[DEBUG] qr_proc_to_orch = {}" .format(qr_proc_to_orch))
+    qr_semaphore.release()
 
-# load the image, convert it to grayscale, and blur it slightly
-image = cv2.imread(args["image"])
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-gray = cv2.GaussianBlur(gray, (7, 7), 0)
+def interface2robot(robot_control_to_orch, robot_semaphore):
+    try:
+        while True:
+            if robot_control_to_orch[4] == 1:
+                robot_semaphore.acquire()
+                robot_control_to_orch[4] = 0
+                local_command = deepcopy(robot_control_to_orch)
+                print("[DummyRobot] new command = {}" .format(local_command))
+                robot_semaphore.release()
+                if local_command[2] != 0.0: 
+                    # bot.turn_angle(angle = local_command[2], speed=200)
+                    print("[DummyRobot] turning {} degrees" .format(local_command[2]))
+                    Sleep(1.6/90 * local_command[2])
+                    # bot.drive_direct(0,0)
+                    time.sleep(0.1)
+                
+                print("[DummyRobot] going forward {}" .format(local_command[3]))
+                # TODO stop the action if needed
+                # time.sleep(local_command[1])
+            
+            time.sleep(.2)
 
-# perform edge detection, then perform a dilation + erosion to
-# close gaps in between object edges
-edged = cv2.Canny(gray, 50, 100)
-edged = cv2.dilate(edged, None, iterations=1)
-edged = cv2.erode(edged, None, iterations=1)
+        
+    except KeyboardInterrupt:
+        # bot.drive_direct(0, 0)
+        print ("kalap")
 
-# find contours in the edge map
-cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,
-    cv2.CHAIN_APPROX_SIMPLE)
-cnts = imutils.grab_contours(cnts)
+if __name__ == '__main__':
+    try:
+        used_commands = []
+        manager = mp.Manager()
+        # Creating sempahores to use consistent data
+        uh_semaphore = manager.BoundedSemaphore(1)
+        mqtt_semaphore = manager.BoundedSemaphore(1)
+        qr_semaphore = manager.BoundedSemaphore(1)
+        robot_semaphore = manager.BoundedSemaphore(1)
 
-# sort the contours from left-to-right and, then initialize the
-# distance colors and reference object
-(cnts, _) = contours.sort_contours(cnts)
-colors = ((0, 0, 255), (240, 0, 159), (0, 165, 255), (255, 255, 0),
-    (255, 0, 255))
-refObj = None
+        # Creating objects to communicate between processes
+        uh_sensor_2_orch = manager.Value('d', 10) 
+        uh_sensor_2_orch = 10.0
+        orch_2_robot_control = manager.Array('d', []) # ID [float], time [sec], angle [degrees], distance [meter], status [float]
+        mqtt_2_orch = manager.Array('d', [])
+        qr_proc_2_orch = manager.Array('d', [])
 
-# loop over the contours individually
-for c in cnts:
-    # if the contour is not sufficiently large, ignore it
-    if cv2.contourArea(c) < 100:
-        continue
+        # Creating processes
+        qr_proc = mp.Process(target = dummy_qr_reader, args=(qr_proc_2_orch, qr_semaphore,))
+        # robot_control_process = mp.Process(target = interface2robot, args=(orch_2_robot_control, robot_semaphore,))
+        # uh_sensor_process = mp.Process(target = uh_sensor, args=(uh_sensor_2_orch, uh_semaphore,))
+        # mqtt_process = Process(target = TODO , args=(qr_proc_2_orch, mqtt_semaphore,)) # Work in progress
 
-    # compute the rotated bounding box of the contour
-    box = cv2.minAreaRect(c)
-    box = cv2.cv.BoxPoints(box) if imutils.is_cv2() else cv2.boxPoints(box)
-    box = np.array(box, dtype="int")
+        # Start the processes
+        qr_proc.start()
+        # robot_control_process.start()
+        # uh_sensor_process.start()
+        # mqtt_process.start() 
 
-    # order the points in the contour such that they appear
-    # in top-left, top-right, bottom-right, and bottom-left
-    # order, then draw the outline of the rotated bounding
-    # box
-    box = perspective.order_points(box)
+        # # We need a loop to process the data from the processes and decide what to do
+        # while True:
+            
+        #     uh_semaphore.acquire()
+        #     dist_from_uh = deepcopy(uh_sensor_2_orch)
+        #     uh_semaphore.release()
+        #     if (dist_from_uh < 10):
+        #         print ("Stopping the robot! dist = {}" .format(dist_from_uh))
+        #         robot_semaphore.acquire()
+        #         orch_2_robot_control = [0.0, 0.1, 0.0, 0.0, 1.0] # stop the robot
+        #         robot_semaphore.release()
 
-    # compute the center of the bounding box
-    cX = np.average(box[:, 0])
-    cY = np.average(box[:, 1])
+        #     mqtt_semaphore.acquire()
+        #     mqtt_code =  deepcopy(mqtt_2_orch) # Note that this will not override the current action
+        #     mqtt_semaphore.release()
+        #     if(check_id(used_commands, mqtt_code[0])):
+        #         used_commands.append(mqtt_code[0])
+        #         robot_semaphore.acquire()
+        #         orch_2_robot_control = mqtt_code
+        #         robot_semaphore.release()
+            
+        #     qr_semaphore.acquire()
+        #     qr_code = deepcopy(orch_2_qr_proc)
+        #     qr_semaphore.release()
+        #     if(check_id(used_commands, qr_code[0])):
+        #         used_commands.append(qr_code[0])
+        #         robot_semaphore.acquire()
+        #         orch_2_robot_control = qr_code
+        #         robot_semaphore.release()
 
-    # if this is the first contour we are examining (i.e.,
-    # the left-most contour), we presume this is the
-    # reference object
-    if refObj is None:
-        # unpack the ordered bounding box, then compute the
-        # midpoint between the top-left and top-right points,
-        # followed by the midpoint between the top-right and
-        # bottom-right
-        (tl, tr, br, bl) = box
-        (tlblX, tlblY) = midpoint(tl, bl)
-        (trbrX, trbrY) = midpoint(tr, br)
+        #     time.sleep(.1)
 
-        # compute the Euclidean distance between the midpoints,
-        # then construct the reference object
-        D = dist.euclidean((tlblX, tlblY), (trbrX, trbrY))
-        refObj = (box, (cX, cY), D / args["width"])
-        continue
+        qr_proc.join()
+        qr_semaphore.acquire()
+        print("[DEBUG] qr_proc_to_orch2 = {}" .format(qr_proc_2_orch))
+        qr_semaphore.release()
+        # robot_control_process.join()
+        
 
-    # draw the contours on the image
-    orig = image.copy()
-    cv2.drawContours(orig, [box.astype("int")], -1, (0, 255, 0), 2)
-    cv2.drawContours(orig, [refObj[0].astype("int")], -1, (0, 255, 0), 2)
-
-    # stack the reference coordinates and the object coordinates
-    # to include the object center
-    refCoords = np.vstack([refObj[0], refObj[1]])
-    objCoords = np.vstack([box, (cX, cY)])
-
-    # loop over the original points
-    for ((xA, yA), (xB, yB), color) in zip(refCoords, objCoords, colors):
-        # draw circles corresponding to the current points and
-        # connect them with a line
-        cv2.circle(orig, (int(xA), int(yA)), 5, color, -1)
-        cv2.circle(orig, (int(xB), int(yB)), 5, color, -1)
-        cv2.line(orig, (int(xA), int(yA)), (int(xB), int(yB)),
-            color, 2)
-
-        # compute the Euclidean distance between the coordinates,
-        # and then convert the distance in pixels to distance in
-        # units
-        D = dist.euclidean((xA, yA), (xB, yB)) / refObj[2]
-        (mX, mY) = midpoint((xA, yA), (xB, yB))
-        cv2.putText(orig, "{:.1f}in".format(D), (int(mX), int(mY - 10)),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
-
-        # show the output image
-        cv2.imshow("Image", orig)
-        cv2.waitKey(0)
+    except KeyboardInterrupt:
+        # Wait to finish the processes (which normally does not happen)
+        qr_proc.join()
+        # robot_control_process.join()
+        # uh_sensor_process.join()
+        # mqtt_process.join()

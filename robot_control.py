@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 #-*-coding:utf-8-*-
-
-import os
 import time
 from pycreate2 import Create2 # Original API
 from copy import deepcopy
@@ -25,7 +23,7 @@ def interface2robot(robot_control_to_orch, robot_semaphore):
                     Sleep(1.6/90 * local_command[2])
                     bot.drive_direct(0,0)
                     time.sleep(0.1)
-                bot.drive_distance(distance = local_command[3], speed=300, stop=True)
+                bot.drive_distance(distance = local_command[3], speed=100, stop=True)
                 # TODO stop the action if needed
                 # time.sleep(local_command[1])
             

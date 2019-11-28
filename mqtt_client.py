@@ -1,49 +1,27 @@
 import context  # Ensures paho is in PYTHONPATH
 import time
+from re import findall
 import paho.mqtt.client as mqtt
 
+def on_message_control(mosq, obj, msg):
+    # This callback will only be called for messages arrived to /robot/cotrol #
 
-def init_iiot_client(cname, cleansession):
-    # Define MQTT client instance
-    client = mqtt.Client(cname, cleansession)
-    # Bind callbacks to callback functions
-    client.on_connect = on_connect
-    client.on_message = on_message
-    client.on_publish = on_publish
-    client.on_subscribe = on_subscribe
-    # client.on_log = on_log
-    # Define and set custom flags for iiot UE application
-    client.getConfigArrived = False
-    client.apnSelectionArrived = False
-    client.startWorkingArrived = False
-    client.connected_flag = False
-    client.disconnect_flag = False
-    return client
+    print(">>> Robot control message arrived: " + msg.topic + " (QoS: " + str(msg.qos) + ") " + str(msg.payload))
 
-
-def on_message_iot(mosq, obj, msg):
-    # This callback will only be called for messages with topics that match
-    # /iiot/device/Huawei01/iot/#
-
-    print(">>> IoT message arrived: " + msg.topic + " (QoS: " + str(msg.qos) + ") " + str(msg.payload))
-
-    if str(msg.payload.decode("utf-8")) == "getConfig" and msg.topic == "/iiot/device/Huawei01/iot":
-        mqttc.getConfigArrived = True
-
-    if str(msg.payload.decode("utf-8")) == "startWorking" and msg.topic == "/iiot/device/Huawei01/iot":
-        mqttc.startWorkingArrived = True
-
-
-def on_message_3gpp(mosq, obj, msg):
-    # This callback will only be called for messages with topics that match
-    # /iiot/device/216012087073947/3gpp/#
-
-    print(">>> 3GPP message arrived: " + msg.topic + " (QoS: " + str(msg.qos) + ") " + str(msg.payload))
-
-    if str(msg.payload.decode("utf-8")) == "apnSelection" and msg.topic == "/iiot/device/216012087073947/3gpp":
-        # TODO: also have to pass the new APN name to the main thread!!
-        mqttc.apnSelectionArrived = True
-
+    if msg.topic == "/robot/cotrol":
+        receivedString = str(msg.payload.decode("utf-8"))
+        # Convert the received string to 5 floats
+        Tlist = findall(r"[-+]?\d*\.\d+|\d+", str(receivedString))
+        x=0
+        while x < len(Tlist):
+            Tlist[x] = float(Tlist[x])
+            x+=1
+        print("[DEBUG] Tlist = {}" .format(Tlist))
+        
+        # Set the commandFlag
+        client.commandFlag = True
+        # Fill the commandArray
+        client.commandArray = Tlist
 
 def on_connect(mqttc, obj, flags, rc):
     print("Return code: " + str(rc))
@@ -55,11 +33,6 @@ def on_message(mosq, obj, msg):
     print(">>> General message arrived: " + msg.topic + " (QoS: " + str(msg.qos) + ") " + str(msg.payload))
 
 
-def on_publish(mqttc, obj, mid):
-    print("Publish message ID: " + str(mid))
-    pass
-
-
 def on_subscribe(mqttc, obj, mid, granted_qos):
     print("Subscribed to: " + str(mid) + " , QoS" + str(granted_qos))
 
@@ -67,88 +40,42 @@ def on_subscribe(mqttc, obj, mid, granted_qos):
 def on_log(mqttc, obj, level, string):
     print("Log: " + string)
 
+def mqtt_client(mqtt_2_orch, mqtt_semaphore):
+    # Init MQTT client
+    client = mqtt.Client("Raspberry_Robot", True)
+    # Bind callbacks to callback functions
+    client.on_connect = on_connect
+    client.on_message = on_message
+    client.on_subscribe = on_subscribe
+    client.on_log = on_log
+    # Define Array for callback function to pass the Array
+    client.commandFlag = False
+    #client.commandArray = [0.0 0.0 0.0 0.0 0.0] OG
+    client.commandArray = [0.0, 0.0, 0.0, 0.0, 0.0] # This is a correct list
 
-# Init iiot client instance
-mqttc = init_iiot_client("Raspberry028", True)
+    client.message_callback_add("/robot/cotrol#", on_message_control)
 
-# Add message callbacks that will only trigger on a specific subscription match.
-mqttc.message_callback_add("/iiot/device/Huawei01/iot/#", on_message_iot)
-mqttc.message_callback_add("/iiot/device/216012087073947/3gpp/#", on_message_3gpp)
+    # TODO: IP address of the Rpi
+    # connect(host, port, keepalive[s]) 
+    client.connect("192.168.1.167", 1883, 60)
 
-######################################################################################
-# TODO: Connect to 5G (with Huawei e3372 LTE stick)
-# - in final application this will be the only internet connection of the Raspberry Pi,
-#       so it is necessary to bring up MQTT connection
-# - but in the development phase I need the local wireless connection too, for SSH
-#       and as a side effect, this connection can be used to bring up MQTT connection!
-######################################################################################
+    # Subscribe to relevant topic
+    client.subscribe("/robot/cotrol", 0)
 
-# TODO: change this to 172.16.7.14
-mqttc.connect("192.168.0.153", 1883, 60)
+    # Let's loop here forever, waiting for incoming control commands
+    while True:
+        # If a controll message arrives to /robot/control topic
+        # on_message_control() callback function handle it
+        client.loop()
 
-# Start the loop thread - runs in the background asynchronously until mqttc.loop_stop() is called!
-mqttc.loop_start()
+        if client.commandFlag:
+            print("No command message received yet")
+            
 
-# Subscribe to topics
-mqttc.subscribe("/iiot/device/Huawei01/iot/#", 0)
-mqttc.subscribe("/iiot/device/216012087073947/3gpp/#", 0)
-mqttc.subscribe("/iiot", 0)
-
-# Publish 5G attached message and wait until completed!
-info_init = mqttc.publish("/iiot/device/216012087073947/3gpp/attach", "ATTACHED", qos=0)
-time.sleep(3)  # Give 3sec time to the loop thread to complete the action
-info_init.wait_for_publish()
-
-# Publish getConfiguration message for myself - ( DELETE THIS LATER!! )
-# info_getconf = mqttc.publish("/iiot/device/Huawei01/iot", "getConfig", qos=0)
-# time.sleep(3)  # Give 3sec time to the loop thread to complete the action
-# info_getconf.wait_for_publish()
-
-while not mqttc.getConfigArrived:
-    print("getConfig message not arrived yet")
-    time.sleep(5)
-
-if mqttc.getConfigArrived:
-    info_conf = mqttc.publish("/iiot/device/Huawei01/iot", "Device configuration - JSON", qos=0)
-    info_conf.wait_for_publish()
-
-# Publish new APN selection message for myself - ( DELETE THIS LATER!! )
-# info_apn = mqttc.publish("/iiot/device/216012087073947/3gpp", "apnSelection", qos=0)
-# time.sleep(3)  # Give 3sec time to the loop thread to complete the action
-# info_apn.wait_for_publish()
-
-while not mqttc.apnSelectionArrived:
-    print("apnSelection message not received yet")
-    time.sleep(5)
-
-if mqttc.apnSelectionArrived:
-    info_detach = mqttc.publish("/iiot/device/216012087073947/3gpp/detach", "Detach old APN - JSON", qos=0)
-    info_detach.wait_for_publish()
-    time.sleep(10)
-    ################################################################################################
-    #
-    # TODO: detach old APN, and attach new APN via AT commands - this should be in the main thread!!
-    #
-    ################################################################################################
-    info_attach = mqttc.publish("/iiot/device/216012087073947/3gpp/attach", "Attach new APN - JSON", qos=0)
-    info_attach.wait_for_publish()
-
-# Publish startWorking myself - ( DELETE THIS LATER!! )
-# info_apn = mqttc.publish("/iiot/device/Huawei01/iot", "startWorking", qos=0)
-# time.sleep(3)  # Give 3sec time to the loop thread to complete the action
-# info_apn.wait_for_publish()
-
-while not mqttc.startWorkingArrived:
-    print("startWorking message not received yet")
-    time.sleep(5)
-
-if mqttc.startWorkingArrived:
-    info_start = mqttc.publish("/iiot/device/Huawei01/iot", "Start working OK - JSON", qos=0)
-    info_start.wait_for_publish()
-
-while True:
-    # TODO: looping the IoT process controller application
-    # TODO: permanently check the MQTT and 5G connection - if lost, repeat the whole connection establishment
-
-    time.sleep(10)
-    print("Working...")
+        if client.commandFlag:
+            # take the semaphore, and write the command to the Array
+            mqtt_semaphore.acquire()
+            mqtt_2_orch.Array = client.commandArray
+            print("[DEBUG] mqtt_2_orch.Array = {}" .format(qr_proc_to_orch.Array))
+            client.commandFlag = False
+            mqtt_semaphore.release()

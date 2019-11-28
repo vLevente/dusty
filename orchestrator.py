@@ -4,9 +4,10 @@ import multiprocessing as mp
 import QR_scanner_from_cam
 import robot_control
 import uh_sensor
-# import mqtt_client
+import mqtt_client
 from copy import deepcopy
 import time
+
 
 def check_id(list_of_ids, new_id):
     for x in list_of_ids:
@@ -32,16 +33,16 @@ if __name__ == '__main__':
         qr_proc_2_orch = mp.Array('d', 5)
 
         # Creating processes
-        qr_proc = Process(target = scan_qr, args=(qr_proc_2_orch, qr_semaphore,))
-        robot_control_process = Process(target = interface2robot, args=(orch_2_robot_control, robot_semaphore,))
+        qr_proc = mp.Process(target = scan_qr, args=(qr_proc_2_orch, qr_semaphore,))
+        robot_control_process = mp.Process(target = interface2robot, args=(orch_2_robot_control, robot_semaphore,))
         uh_sensor_process = mp.Process(target = uh_sensor, args=(uh_sensor_2_orch, uh_semaphore,))
-        # mqtt_process = Process(target = TODO , args=(qr_proc_2_orch, mqtt_semaphore,)) # Work in progress
+        mqtt_process = Process(target = TODO , args=(qr_proc_2_orch, mqtt_semaphore,)) # Work in progress
 
         # Start the processes
         qr_proc.start()
         robot_control_process.start()
         uh_sensor_process.start()
-        # mqtt_process.start() 
+        mqtt_process.start() 
 
         # We need a loop to process the data from the processes and decide what to do
         while True:
@@ -52,13 +53,13 @@ if __name__ == '__main__':
             if (dist_from_uh < 10):
                 print ("Stopping the robot! dist = {}" .format(dist_from_uh))
                 robot_semaphore.acquire()
-                orch_2_robot_control.Array = [0.0 0.1, 0.0, 0.0, 1.0] # stop the robot
+                orch_2_robot_control.Array = [0.0, 0.1, 0.0, 0.0, 1.0] # stop the robot
                 robot_semaphore.release()
 
             mqtt_semaphore.acquire()
             mqtt_code =  deepcopy(mqtt_2_orch.Array) # Note that this will not override the current action
             mqtt_semaphore.release()
-            if(check_id(used_commands, mqtt_code[0]))
+            if(check_id(used_commands, mqtt_code[0])):
                 used_commands.append(mqtt_code[0])
                 robot_semaphore.acquire()
                 orch_2_robot_control.Array = mqtt_code
@@ -67,7 +68,7 @@ if __name__ == '__main__':
             qr_semaphore.acquire()
             qr_code = deepcopy(orch_2_qr_proc.Array)
             qr_semaphore.release()
-            if(check_id(used_commands, qr_code[0]))
+            if(check_id(used_commands, qr_code[0])):
                 used_commands.append(qr_code[0])
                 robot_semaphore.acquire()
                 orch_2_robot_control.Array = qr_code
@@ -81,4 +82,4 @@ if __name__ == '__main__':
         qr_proc.join()
         robot_control_process.join()
         uh_sensor_process.join()
-        # mqtt_process.join()
+        mqtt_process.join()
