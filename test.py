@@ -55,8 +55,8 @@ def interface2robot(orch_2_robot_control, robot_semaphore):
 def orchme(orch_2_robot_control, uh_sensor_2_orch, mqtt_2_orch, qr_proc_2_orch, robot_semaphore, uh_semaphore, mqtt_semaphore, qr_semaphore):
     try:
         mqtt_code = [0.0, 0.1, 0.0, 0.0, 1.0]
-        dist_from_uh =[0.0, 0.1, 0.0, 0.0, 1.0]
-        qr_code =[0.0, 0.1, 0.0, 0.0, 1.0]
+        dist_from_uh = [0.0, 0.1, 0.0, 0.0, 1.0]
+        qr_code = [0.0, 0.1, 0.0, 0.0, 1.0]
         used_commands = []
         time.sleep(2.0)
 

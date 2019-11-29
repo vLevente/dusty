@@ -63,19 +63,26 @@ def mqtt_client(mqtt_2_orch, mqtt_semaphore):
     client.subscribe("/robot/cotrol", 0)
 
     # Let's loop here forever, waiting for incoming control commands
-    while True:
-        # If a controll message arrives to /robot/control topic
-        # on_message_control() callback function handle it
-        client.loop()
+    try:
+        while True:
+            # If a controll message arrives to /robot/control topic
+            # on_message_control() callback function handle it
+            client.loop()
 
-        if client.commandFlag:
-            print("No command message received yet")
-            
-
-        if client.commandFlag:
-            # take the semaphore, and write the command to the Array
-            mqtt_semaphore.acquire()
-            mqtt_2_orch.Array = client.commandArray
-            print("[DEBUG] mqtt_2_orch.Array = {}" .format(qr_proc_to_orch.Array))
-            client.commandFlag = False
-            mqtt_semaphore.release()
+            if client.commandFlag:
+                print("No command message received yet")
+                
+            if client.commandFlag:
+                # take the semaphore, and write the command to the Array
+                mqtt_semaphore.acquire()
+                mqtt_2_orch[0] = client.commandArray[0]
+                mqtt_2_orch[1] = client.commandArray[1]
+                mqtt_2_orch[2] = client.commandArray[2]
+                mqtt_2_orch[3] = client.commandArray[3]
+                mqtt_2_orch[4] = client.commandArray[4]
+                print("[DEBUG] New mqtt message mqtt_2_orch = {}" .format(mqtt_2_orch))
+                client.commandFlag = False
+                mqtt_semaphore.release()
+    
+    except KeyboardInterrupt:
+        print("[INFO] mqtt_client finished working")

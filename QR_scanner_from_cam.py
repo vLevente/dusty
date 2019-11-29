@@ -13,8 +13,7 @@ from copy import deepcopy
 from re import findall
 import multiprocessing as mp
 
-
-def scan_qr(qr_proc_to_orch, qr_semaphore):
+def scan_qr(qr_proc_2_orch, qr_semaphore):
     # construct the argument parser and parse the arguments
     ap = argparse.ArgumentParser()
     ap.add_argument("-o", "--output", type=str, default="barcodes.csv",
@@ -67,30 +66,27 @@ def scan_qr(qr_proc_to_orch, qr_semaphore):
                                             barcodeData))
                     csv.flush()
                     found.add(barcodeData)
-                    print("[DEBUG] raw barcodeData: {}".format(barcodeData))
+                    print("[DEBUG] scan_qr raw barcodeData: {}".format(barcodeData))
 
                     Tlist = findall(r"[-+]?\d*\.\d+|\d+", str(barcodeData))
                     x=0
                     while x < len(Tlist):
                         Tlist[x] = float(Tlist[x])
                         x+=1
-                    print("[DEBUG] Tlist = {}" .format(Tlist))
+                    print("[DEBUG] scan_qr Tlist = {}" .format(Tlist))
 
                     qr_semaphore.acquire()
-                    qr_proc_to_orch.Array = Tlist
-                    print("[DEBUG] qr_proc_to_orch.Array = {}" .format(qr_proc_to_orch.Array))
+                    qr_proc_2_orch[0] = Tlist[0]
+                    qr_proc_2_orch[1] = Tlist[1]
+                    qr_proc_2_orch[2] = Tlist[2]
+                    qr_proc_2_orch[3] = Tlist[3]
+                    qr_proc_2_orch[4] = Tlist[4]
+                    print("[DEBUG] New QR code qr_proc_2_orch = {}" .format(qr_proc_2_orch))
                     qr_semaphore.release()
 
-            # show the output frame
-            # cv2.imshow("Barcode Scanner", frame)
-            # key = cv2.waitKey(1) & 0xFF
-
-            # # if the `q` key was pressed, break from the loop
-            # if key == ord("q"):
-            #     break
     except KeyboardInterrupt:
         # close the output CSV file do a bit of cleanup
-        print("[INFO] QR scanner cleaning up...")
+        print("[INFO] scan_qr finished working")
         csv.close()
         cv2.destroyAllWindows()
         vs.stop()
