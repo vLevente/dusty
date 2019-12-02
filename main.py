@@ -23,6 +23,7 @@ if __name__ == '__main__':
         robot_semaphore = manager.BoundedSemaphore(1)
 
         # Creating objects to communicate between processes
+        interrupt = manager.list(range(1))
         uh_sensor_2_orch = manager.list(range(1))
         uh_sensor_2_orch[0] = 11.0
         orch_2_robot_control = manager.list(range(5)) # ID [float], time [sec], angle [degrees], distance [meter], status [float]
@@ -31,8 +32,8 @@ if __name__ == '__main__':
 
         # Creating processes
         qr_proc = mp.Process(target = QR_scanner_from_cam.scan_qr, args=(qr_proc_2_orch, qr_semaphore))
-        robot_control_process = mp.Process(target = robot_control.interface2robot, args=(orch_2_robot_control, robot_semaphore))
-        orch = mp.Process(target = orchestrator.orchme, args=(orch_2_robot_control, uh_sensor_2_orch, mqtt_2_orch, qr_proc_2_orch, robot_semaphore, uh_semaphore, mqtt_semaphore, qr_semaphore))
+        robot_control_process = mp.Process(target = robot_control.interface2robot, args=(orch_2_robot_control, robot_semaphore, interrupt))
+        orch = mp.Process(target = orchestrator.orchme, args=(orch_2_robot_control, uh_sensor_2_orch, mqtt_2_orch, qr_proc_2_orch, robot_semaphore, uh_semaphore, mqtt_semaphore, qr_semaphore, interrupt))
         uh_sensor_process = mp.Process(target = uh_sensor.uh_sensor, args=(uh_sensor_2_orch, uh_semaphore))
         mqtt_process = Process(target = mqtt_client.mqtt_client , args=(mqtt_2_orch, mqtt_semaphore)) 
         

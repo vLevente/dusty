@@ -19,6 +19,7 @@ def orchme(orch_2_robot_control, uh_sensor_2_orch, mqtt_2_orch, qr_proc_2_orch, 
         dist_from_uh = [999.0, 0.1, 0.0, 0.0, 1.0]
         qr_code = [999.0, 0.1, 0.0, 0.0, 1.0]
         used_commands = []
+        interrupt[0] = False
 
         time.sleep(2.0)
 
@@ -34,6 +35,7 @@ def orchme(orch_2_robot_control, uh_sensor_2_orch, mqtt_2_orch, qr_proc_2_orch, 
                 orch_2_robot_control[2] = 0.0
                 orch_2_robot_control[3] = 0.0
                 orch_2_robot_control[4] = 1.0
+                interrupt[0] = True
                 robot_semaphore.release()
             
             mqtt_semaphore.acquire()
