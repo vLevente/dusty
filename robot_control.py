@@ -30,7 +30,7 @@ def interface2robot(orch_2_robot_control, robot_semaphore, interrupt):
                     time.sleep(0.1)
                 # bot.drive_distance(distance = local_command[3], speed=100, stop=True)
 
-                bot.drive_direct(local_command[3], local_command[3])
+                bot.drive_direct(int(local_command[3]), int(local_command[3]))
                 while (not interrupt[0] and not timecomplete):
                     if(time.time() >= goal_time):
                         timecomplete = True

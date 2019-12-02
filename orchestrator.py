@@ -12,7 +12,7 @@ def check_id(list_of_ids, new_id):
     return True
 
 
-def orchme(orch_2_robot_control, uh_sensor_2_orch, mqtt_2_orch, qr_proc_2_orch, robot_semaphore, uh_semaphore, mqtt_semaphore, qr_semaphore):
+def orchme(orch_2_robot_control, uh_sensor_2_orch, mqtt_2_orch, qr_proc_2_orch, robot_semaphore, uh_semaphore, mqtt_semaphore, qr_semaphore, interrupt):
     try:
         # HACK we need a valid initial value
         mqtt_code = [999.0, 0.1, 0.0, 0.0, 1.0] 
@@ -25,7 +25,8 @@ def orchme(orch_2_robot_control, uh_sensor_2_orch, mqtt_2_orch, qr_proc_2_orch, 
 
         while True:
             uh_semaphore.acquire()
-            dist_from_uh = deepcopy(uh_sensor_2_orch)
+            # dist_from_uh = deepcopy(uh_sensor_2_orch)
+            dist_from_uh[0] = uh_sensor_2_orch[0]
             uh_semaphore.release()
             if (dist_from_uh[0] < 10):
                 print ("Stopping the robot! dist = {}" .format(dist_from_uh[0]))
@@ -39,7 +40,12 @@ def orchme(orch_2_robot_control, uh_sensor_2_orch, mqtt_2_orch, qr_proc_2_orch, 
                 robot_semaphore.release()
             
             mqtt_semaphore.acquire()
-            mqtt_code =  deepcopy(mqtt_2_orch) # Note that this will not override the current action
+            # mqtt_code =  deepcopy(mqtt_2_orch) # Note that this will not override the current action
+            mqtt_code[0] = mqtt_2_orch[0]
+            mqtt_code[1] = mqtt_2_orch[1]
+            mqtt_code[2] = mqtt_2_orch[2]
+            mqtt_code[3] = mqtt_2_orch[3]
+            mqtt_code[4] = mqtt_2_orch[4]
             mqtt_semaphore.release()
             if(check_id(used_commands, mqtt_code[0])):
                 print ("New mqtt_code! mqtt_code = {}" .format(mqtt_code))
@@ -52,19 +58,24 @@ def orchme(orch_2_robot_control, uh_sensor_2_orch, mqtt_2_orch, qr_proc_2_orch, 
                 orch_2_robot_control[4] = mqtt_code[4]
                 robot_semaphore.release()
             
-            qr_semaphore.acquire()
-            qr_code = deepcopy(qr_proc_2_orch)
-            qr_semaphore.release()
-            if(check_id(used_commands, qr_code[0])):
-                print ("New qr_code! qr_code = {}" .format(qr_code))
-                used_commands.append(qr_code[0])
-                robot_semaphore.acquire()
-                orch_2_robot_control[0] = qr_code[0]
-                orch_2_robot_control[1] = qr_code[1]
-                orch_2_robot_control[2] = qr_code[2]
-                orch_2_robot_control[3] = qr_code[3]
-                orch_2_robot_control[4] = qr_code[4]
-                robot_semaphore.release()
+            # qr_semaphore.acquire()
+            # # qr_code = deepcopy(qr_proc_2_orch)
+            # qr_code[0] = qr_proc_2_orch[0]
+            # qr_code[1] = qr_proc_2_orch[1]
+            # qr_code[2] = qr_proc_2_orch[2]
+            # qr_code[3] = qr_proc_2_orch[3]
+            # qr_code[4] = qr_proc_2_orch[4]
+            # qr_semaphore.release()
+            # if(check_id(used_commands, qr_code[0])):
+            #     print ("New qr_code! qr_code = {}" .format(qr_code))
+            #     used_commands.append(qr_code[0])
+            #     robot_semaphore.acquire()
+            #     orch_2_robot_control[0] = qr_code[0]
+            #     orch_2_robot_control[1] = qr_code[1]
+            #     orch_2_robot_control[2] = qr_code[2]
+            #     orch_2_robot_control[3] = qr_code[3]
+            #     orch_2_robot_control[4] = qr_code[4]
+            #     robot_semaphore.release()
             time.sleep(2.2)
 
     except KeyboardInterrupt:

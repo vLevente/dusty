@@ -1,7 +1,3 @@
-cat: main: No such file or directory
-pi@raspberrypi:~/dusty$ cat main.PY
-cat: main.PY: No such file or directory
-pi@raspberrypi:~/dusty$ cat main.py
 #!/usr/bin/python
 
 # Custom
